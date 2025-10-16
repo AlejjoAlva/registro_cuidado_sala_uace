@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validación de Turno</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .container {
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 { color: #333; }
+        p { color: #666; font-size: 1.1rem; }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="status-container">
+        <h1>Validando Ubicación...</h1>
+        <div class="spinner"></div>
+        <p>Por favor, acepta el permiso de ubicación en tu navegador.</p>
+    </div>
+
+    <script>
+        // ¡IMPORTANTE! Reemplaza esta URL con la tuya de n8n.
+        const N8N_WEBHOOK_URL = 'URL_DE_TU_WEBHOOK_DE_N8N';
+
+        const statusContainer = document.getElementById('status-container');
+
+        function showStatus(message, isError = false) {
+            statusContainer.innerHTML = `<h1>${message}</h1>`;
+            if (!isError) {
+                statusContainer.innerHTML += `<p>¡Listo! Ya puedes cerrar esta pestaña.</p>`;
+            } else {
+                statusContainer.innerHTML += `<p>Por favor, intenta de nuevo o contacta al administrador.</p>`;
+                statusContainer.style.backgroundColor = '#ffebee';
+            }
+        }
+
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('user');
+            const action = urlParams.get('action');
+
+            if (!userId || !action) {
+                showStatus("Error: Faltan parámetros en la URL.", true);
+                return;
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    fetch(N8N_WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latitude, longitude, userId, action })
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en el servidor de n8n.');
+                        showStatus("Turno registrado con éxito.");
+                    })
+                    .catch(error => showStatus("Error al enviar la ubicación.", true));
+
+                }, () => showStatus("No se pudo obtener la ubicación. Revisa los permisos.", true));
+            } else {
+                showStatus("Geolocalización no es soportada por este navegador.", true);
+            }
+        };
+    </script>
+</body>
+</html>
